@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shower tile planner</title>
+<style>
+:root{
+  --bg:#EDEFEC; --panel:#F8F9F7; --ink:#1F2B33; --muted:#5B6870; --line:#C8CFCC;
+  --tile:#C7D2D7; --tile-edge:#8C9DA6; --cut:#EDB458; --cut-edge:#A86E14; --cut-ink:#4A2E05;
+  --chalk:#C2411C; --floor:#9AA6A0; --err:#B3261E; --accent:#2F5D73; --slab:#8E9894;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#151B1F; --panel:#1D252A; --ink:#E3E8E6; --muted:#9AA7AD; --line:#34424A;
+  --tile:#3C4D57; --tile-edge:#6C808B; --cut:#8E5F17; --cut-edge:#E0A64A; --cut-ink:#FCE3B8;
+  --chalk:#F0784F; --floor:#4E5A55; --err:#F2948C; --accent:#8CC3DA; --slab:#56625E; color-scheme:dark;}}
+*{box-sizing:border-box}
+html{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);font-variant-numeric:tabular-nums}
+header{padding:28px 20px 8px;max-width:1180px;margin:0 auto}
+h1{font-size:28px;line-height:1.15;margin:0;font-weight:700;letter-spacing:-.01em}
+header p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+main{max-width:1180px;margin:0 auto;padding:16px 20px 40px;display:grid;grid-template-columns:340px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+main>*{min-width:0}
+@media (max-width:420px){header,main{padding-left:16px;padding-right:16px}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+h2{font-size:15px;margin:0 0 10px;font-weight:650}
+fieldset{border:0;padding:0;margin:0 0 18px;min-width:0}
+.walls{display:grid;gap:10px}
+.wall{border-left:3px solid var(--tile-edge);padding:2px 0 2px 10px}
+.wall.on{border-left-color:var(--accent)}
+.wall.off{border-left-style:dashed}
+.wall.off .row3,.wall.off .nchk,.wall.off .niche{display:none}
+.nchk{margin-top:6px;font-size:13px}
+.niche .row3{margin-top:6px}
+.niche button{font:inherit;font-size:13px;padding:7px 8px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;align-self:end}
+.niche button:disabled{opacity:.45;cursor:default}
+.nic{fill:var(--bg);stroke:var(--ink);stroke-width:1.2}
+.nicin{fill:none;stroke:var(--muted);stroke-width:.8;stroke-dasharray:3 2}
+.whead{display:flex;align-items:center;gap:8px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:8px}
+label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}
+label.check{flex-direction:row;align-items:center;gap:6px;color:var(--ink);white-space:nowrap;cursor:pointer}
+label.check input{width:auto;margin:0;accent-color:var(--accent)}
+input,select{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%;min-width:0}
+select{padding:7px 4px}
+select:disabled{opacity:.5}
+input::placeholder{color:var(--muted);opacity:.8}
+input:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input.name{font-weight:600;background:transparent;border-color:transparent;padding-left:0}
+input.name:hover,input.name:focus{border-color:var(--line);padding-left:9px}
+.err{color:var(--err);font-size:13px;min-height:0;margin-top:3px}
+.meta{font-size:13px;color:var(--muted);margin-top:4px}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-bottom:10px}
+.seg button{flex:1;font:inherit;font-size:14px;padding:8px 6px;background:transparent;color:var(--ink);border:0;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--panel)}
+.viewbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.viewbar .seg{margin:0;flex:0 0 auto}
+.viewbar .seg button{padding:6px 16px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{font:inherit;font-size:14px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.tabs button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.drawing{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+svg{display:block;width:100%;height:auto}
+#plan{max-width:320px;margin:0 auto 4px;overflow:visible}
+.hit{fill:transparent;cursor:pointer}
+.hit:hover{fill:var(--accent);fill-opacity:.12}
+.t-full{fill:var(--tile);stroke:var(--tile-edge);stroke-width:.6}
+.t-cut{fill:var(--cut);stroke:var(--cut-edge);stroke-width:.6}
+.lbl{font-size:12px;fill:var(--muted)}
+.cutlbl{font-size:12px;fill:var(--cut-ink);font-weight:600}
+#v3 canvas{display:block;width:100%;border-radius:6px;touch-action:none;cursor:grab}
+#v3 canvas:active{cursor:grabbing}
+.v3msg{padding:60px 16px;text-align:center;color:var(--muted)}
+.v3bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:13px;color:var(--muted);margin:8px 4px 0}
+.v3bar button{font:inherit;font-size:13px;padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted);margin:8px 4px 0}
+.sw{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+.tablewrap{overflow-x:auto;margin-top:18px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{font-weight:500;color:var(--muted);font-size:13px}
+tfoot td{font-weight:600;border-bottom:0}
+.foot{display:flex;gap:10px;margin-top:14px}
+.foot button{font:inherit;font-size:14px;padding:7px 12px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.sub{font-size:12px;color:var(--muted)}
+.area{margin:10px 0 0;font-size:14px}
+.area b{font-weight:600}
+.warn{margin-top:16px;border-left:3px solid var(--err);padding:2px 0 2px 12px}
+.warn h2{margin-bottom:4px}
+.warn ul{margin:0;padding-left:18px;font-size:14px}
+.warn li{margin:3px 0}
+.dot{color:var(--err);font-size:10px;vertical-align:2px}
+.t-warn{stroke:var(--err);stroke-width:2}
+.hint{font-size:13px;color:var(--muted);margin:4px 0 0}
+[hidden]{display:none!important}
+@media print{main{grid-template-columns:1fr}.panel,.viewbar .seg,.v3bar{display:none}body{background:#fff}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Shower tile planner</h1>
+  <p>Set the shower's size, mark where the walls are, then check the cuts and ledger height for each wall in 2D or 3D. Sizes take fractions like 70 1/2 or decimals like 70.5.</p>
+</header>
+<main>
+  <section class="panel" aria-label="Measurements">
+    <fieldset>
+      <h2>Shower</h2>
+      <div class="row">
+        <label>Width (back wall)<input id="W" inputmode="decimal"></label>
+        <label>Depth (side walls)<input id="D" inputmode="decimal"></label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label>Ceiling height<input id="H" inputmode="decimal"></label>
+        <label>Tile + thinset<input id="T" inputmode="decimal"></label>
+      </div>
+      <div class="err" id="serr"></div>
+      <p class="hint">Measure width and depth between the backer boards, before tile.</p>
+    </fieldset>
+    <fieldset>
+      <h2>Walls</h2>
+      <svg id="plan" role="img" aria-label="Top view of the shower showing which sides have walls"></svg>
+      <p class="hint" style="margin:0 0 12px">Top view, entry at the bottom. Tap a side to add or remove a wall. Give a length for a short return or a height for a knee wall.</p>
+      <div class="walls" id="walls"></div>
+    </fieldset>
+    <fieldset>
+      <h2>Tile and gaps</h2>
+      <div class="row">
+        <label>Tile width<input id="tw" inputmode="decimal"></label>
+        <label>Tile height<input id="th" inputmode="decimal"></label>
+      </div>
+      <div class="row3" style="margin-top:8px;grid-template-columns:1fr 1fr 1fr">
+        <label>Grout joint<input id="g" inputmode="decimal"></label>
+        <label>Edge gap<input id="eg" inputmode="decimal"></label>
+        <label>Floor buildup<input id="fb" inputmode="decimal"></label>
+      </div>
+      <div class="err" id="gerr"></div>
+    </fieldset>
+    <fieldset>
+      <h2>Rows</h2>
+      <div class="seg" role="group" aria-label="Row layout">
+        <button data-opt="B">Balanced cuts</button>
+        <button data-opt="A">Full row at floor</button>
+      </div>
+      <h2>Pattern</h2>
+      <div class="seg" role="group" aria-label="Pattern">
+        <button data-pat="stack">Stack</button>
+        <button data-pat="offset">1/3 offset</button>
+      </div>
+    </fieldset>
+    <div class="foot">
+      <button id="print">Print</button>
+      <button id="reset">Reset to defaults</button>
+    </div>
+  </section>
+
+  <section aria-label="Layout">
+    <div class="viewbar">
+      <div class="tabs" id="tabs" role="group" aria-label="Wall to show"></div>
+      <div class="seg" role="group" aria-label="View">
+        <button data-view="2d">2D</button>
+        <button data-view="3d">3D</button>
+      </div>
+    </div>
+    <div class="drawing">
+      <svg id="svg" viewBox="0 0 680 460" role="img" aria-label="Tile layout for the selected wall"></svg>
+      <div id="v3" hidden></div>
+    </div>
+    <div class="v3bar" id="v3bar" hidden>
+      <label class="check"><input type="checkbox" id="cuts"> Color cut tiles</label>
+      <label class="check">Finish <select id="finish" style="width:auto;font-size:13px;padding:4px 6px">
+        <option value="layout">Layout colors</option>
+        <option value="carrara">Carrara marble</option>
+        <option value="calacatta">Calacatta marble</option>
+        <option value="nero">Nero marble</option>
+      </select></label>
+      <label class="check" id="groutwrap">Grout <select id="grout" style="width:auto;font-size:13px;padding:4px 6px">
+        <option value="white">White</option>
+        <option value="light">Light gray</option>
+        <option value="gray">Gray</option>
+        <option value="charcoal">Charcoal</option>
+      </select></label>
+      <label class="check"><input type="checkbox" id="ledg"> Show ledger</label>
+      <button id="resetview">Reset view</button>
+      <span>Drag to turn, scroll or pinch to zoom. Walls between you and the shower hide.</span>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--tile);border:1px solid var(--tile-edge)"></i>Full tile</span>
+      <span><i class="sw" style="background:var(--cut);border:1px solid var(--cut-edge)"></i>Cut tile</span>
+      <span><i class="sw" style="background:var(--chalk)"></i>Ledger, measured from the pan</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(45deg,var(--muted) 0 2px,transparent 2px 4px);border:1px solid var(--muted)"></i>Covered by the next wall's tile</span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Wall</th><th>Tiled size</th><th>End cuts (L / R)</th><th>Cut rows</th><th>Ledger</th><th>Full tiles</th><th>Cut pieces</th><th>Area</th></tr></thead>
+        <tbody id="tb"></tbody>
+        <tfoot id="tf"></tfoot>
+      </table>
+    </div>
+    <p class="area" id="area"></p>
+    <div class="warn" id="warn" hidden></div>
+  </section>
+</main>
+<script>
+const SIDES = ["back", "left", "right", "front"];
+// Partial walls start at one end. Back/front choose left or right; sides choose back or front.
+const ENDS = {back: ["left", "right"], left: ["back", "front"], right: ["back", "front"], front: ["left", "right"]};
+const END_LBL = {left: "Left corner", right: "Right corner", back: "Back corner", front: "Front"};
+const NICHE = {on: false, w: "12", h: "24", d: "3 1/2", y: "48", x: ""};
+const SLAB = 3.5; // framing + backer thickness, for drawing only
+const DEFAULTS = {
+  W: "70 1/2", D: "36 1/2", H: "97", T: "1/2",
+  walls: {
+    back:  {name: "Back",  on: true,  len: "", ht: "", from: "left", niche: {...NICHE}},
+    left:  {name: "Left",  on: true,  len: "", ht: "", from: "back", niche: {...NICHE}},
+    right: {name: "Right", on: true,  len: "", ht: "", from: "back", niche: {...NICHE}},
+    front: {name: "Front", on: false, len: "", ht: "", from: "left", niche: {...NICHE}}
+  },
+  tw: "23 5/8", th: "11 9/16", g: "1/8", eg: "1/8", fb: "3/8", opt: "B", pat: "stack",
+  sel: "back", view: "2d", cuts: true, ledger: true, finish: "layout", grout: "light"
+};
+const KEY = "shower-tile-planner-v2", OLD_KEY = "shower-tile-planner-v1";
+const $ = id => document.getElementById(id);
+const clone = o => JSON.parse(JSON.stringify(o));
+let st = load();
+
+function load(){
+  const d = clone(DEFAULTS);
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && s.walls && s.walls.back) {
+      const w = d.walls; Object.assign(d, s); d.walls = w;
+      SIDES.forEach(k => Object.assign(d.walls[k], s.walls[k] || {}));
+      return d;
+    }
+  } catch(e) {}
+  try { // carry over settings from the first version (four independent walls)
+    const o = JSON.parse(localStorage.getItem(OLD_KEY));
+    if (o && Array.isArray(o.walls)) {
+      ["tw","th","g","eg","fb","opt","pat"].forEach(k => { if (o[k] != null) d[k] = o[k]; });
+      const [b, l, r, f] = o.walls;
+      if (b) { d.W = b[1]; d.H = b[2]; d.walls.back.name = b[0] || "Back"; }
+      const lw = parse(l?.[1]), rw = parse(r?.[1]), side = Math.max(lw || 0, rw || 0);
+      if (side > 0) d.D = fr(side + parse(d.T));
+      [[l, "left", lw], [r, "right", rw], [f, "front", parse(f?.[1])]].forEach(([w, k, v]) => {
+        if (!w) return;
+        d.walls[k].name = w[0] || d.walls[k].name; d.walls[k].on = v > 0;
+        if (k !== "front" && v > 0 && v < side - 0.01) d.walls[k].len = w[1];
+      });
+    }
+  } catch(e) {}
+  return d;
+}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(st)); } catch(e) {} }
+
+function parse(s){
+  s = String(s ?? "").trim().replace(/(\d)-(\d)/, "$1 $2").replace(/["”]/g, "");
+  let m = s.match(/^(\d+(?:\.\d+)?)(?:\s+(\d+)\/(\d+))?$/);
+  if (m) { let v = +m[1]; if (m[2]) v += m[2] / m[3]; return v; }
+  m = s.match(/^(\d+)\/(\d+)$/);
+  return m && +m[2] ? m[1] / m[2] : NaN;
+}
+function fr(x){
+  let n = Math.round(x * 16), w = Math.floor(n / 16), r = n % 16, d = 16;
+  while (r && r % 2 === 0) { r /= 2; d /= 2; }
+  return r ? (w ? `${w} ${r}/${d}` : `${r}/${d}`) : String(w);
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- geometry ---------- */
+
+// Plan coordinates: x runs left to right along the back wall, z runs from the back wall (0) to the entry (D),
+// y is up from the pan. Each wall has a local axis u along its face, left to right as you face it from inside.
+function geometry(c){
+  const w = st.walls, {W, D, H, T} = c, num = {};
+  SIDES.forEach(k => {
+    const s = w[k], lt = String(s.len).trim(), ht = String(s.ht).trim();
+    num[k] = {len: lt ? parse(lt) : null, ht: ht ? parse(ht) : null};
+  });
+  const partial = k => num[k].len != null && !isNaN(num[k].len);
+  // A partial wall reaches the end it starts from, and also its far end when it's long enough to get there
+  // (within 1/16"). Lengths assume the usual butts: sides butt into the back tile, the front butts into both sides.
+  const need = {back: W, left: D - T, right: D - T, front: W - 2 * T};
+  const reach = (k, end) => w[k].on && (!partial(k) || w[k].from === end || num[k].len >= need[k] - 1/16);
+  // The back wall runs through both back corners; side walls butt into it and run through the front corners.
+  const cBL = reach("back","left") && reach("left","back"), cBR = reach("back","right") && reach("right","back");
+  const cFL = reach("front","left") && reach("left","front"), cFR = reach("front","right") && reach("right","front");
+  const base = {back: [0, W], left: [cBL ? T : 0, D], right: [cBR ? T : 0, D], front: [cFL ? T : 0, W - (cFR ? T : 0)]};
+  const lowEnd = {back: "left", left: "back", right: "back", front: "left"};
+  const out = {corners: {cBL, cBR, cFL, cFR}};
+  SIDES.forEach(k => {
+    const s = w[k], [lo, hi] = base[k], max = hi - lo, n = num[k];
+    let span = [lo, hi], err = "", ht = H;
+    if (n.len != null) {
+      if (isNaN(n.len)) err = "Enter a length like 24 or 24 1/2.";
+      else if (n.len < 6) err = "Length must be at least 6\".";
+      else if (n.len > max + 0.01) err = `This wall can be at most ${fr(max)}" long. Leave length blank for full.`;
+      else {
+        span = s.from === lowEnd[k] ? [lo, lo + n.len] : [hi - n.len, hi];
+        // long enough to meet the wall at its far end: run it into that corner
+        const loC = {back: cBL, left: cBL, right: cBR, front: cFL}[k], hiC = {back: cBR, left: cFL, right: cFR, front: cFR}[k];
+        if (s.from === lowEnd[k] ? hiC : loC) span = [lo, hi];
+      }
+    }
+    if (n.ht != null) {
+      if (isNaN(n.ht)) err = err || "Enter a height like 40.";
+      else if (n.ht > H + 0.01) err = err || "Can't be taller than the ceiling.";
+      else if (n.ht < 12) err = err || "Height must be at least 12\".";
+      else ht = n.ht;
+    }
+    // O = plan point at u = 0, dir = +u, n = face normal (into the shower), rot = rotation about y for 3D boxes.
+    // e0/e1: is there a corner at the u = 0 / u = len end; x0/x1: how far the framing extends past that end.
+    let f;
+    if (k === "back")  f = {O: [span[0], 0, 0], dir: [1, 0, 0],  n: [0, 0, 1],  rot: 0,            e0: cBL, e1: cBR, x0: cBL ? SLAB : 0, x1: cBR ? SLAB : 0};
+    if (k === "left")  f = {O: [0, 0, span[1]], dir: [0, 0, -1], n: [1, 0, 0],  rot: Math.PI / 2,  e0: cFL, e1: cBL, x0: cFL ? SLAB : 0, x1: cBL ? T : 0};
+    if (k === "right") f = {O: [W, 0, span[0]], dir: [0, 0, 1],  n: [-1, 0, 0], rot: -Math.PI / 2, e0: cBR, e1: cFR, x0: cBR ? T : 0,    x1: cFR ? SLAB : 0};
+    if (k === "front") f = {O: [span[1], 0, D], dir: [-1, 0, 0], n: [0, 0, -1], rot: Math.PI,      e0: cFR, e1: cFL, x0: cFR ? T : 0,    x1: cFL ? T : 0};
+    out[k] = {k, name: s.name || DEFAULTS.walls[k].name, on: s.on, ok: s.on && !err, err, span, len: span[1] - span[0],
+      max, ht, full: ht >= H - 0.01, ...f, ...nicheOf(s.niche, span[1] - span[0], ht, c)};
+  });
+  // A wall that runs into a corner has its end tile partly covered by the tile of the wall that butts into it.
+  // hid = how far from the end (u = 0 or u = len) is covered, by = that wall, upto = how high it covers.
+  const cover = (on, k) => on ? {hid: T, by: out[k].name, upto: out[k].ht} : {hid: 0};
+  Object.assign(out.back,  {c0: cover(cBL, "left"),  c1: cover(cBR, "right")});
+  Object.assign(out.left,  {c0: cover(cFL, "front"), c1: cover(false)});
+  Object.assign(out.right, {c0: cover(false),        c1: cover(cFR, "front")});
+  Object.assign(out.front, {c0: cover(false),        c1: cover(false)});
+  // ends as you face each wall from inside: [direction of the u = 0 end, of the u = len end] and the wall there
+  const END = {back: [["left", "left"], ["right", "right"]], left: [["front", "front"], ["back", "back"]],
+               right: [["back", "back"], ["front", "front"]], front: [["right", "right"], ["left", "left"]]};
+  SIDES.forEach(k => { const [a, b] = END[k]; out[k].n0 = {dir: a[0], wall: out[a[1]]}; out[k].n1 = {dir: b[0], wall: out[b[1]]}; });
+  return out;
+}
+// A niche is given by its rough opening (in the backer): width, height, depth, bottom above the pan and
+// left edge along the wall as seen from inside (blank = centered). Returns {niche} or {nerr}.
+function nicheOf(ns, len, ht, c){
+  if (!ns || !ns.on) return {niche: null, nerr: ""};
+  const xs = String(ns.x ?? "").trim(), [w, h, d, y] = ["w", "h", "d", "y"].map(f => parse(ns[f])), xv = xs ? parse(xs) : null;
+  let e = "";
+  if ([w, h, d, y].some(isNaN) || (xv != null && isNaN(xv))) e = "Enter niche sizes like 12 or 14 1/2.";
+  else if (w < 4 || h < 4) e = "The niche must be at least 4\" each way.";
+  else if (d <= c.T + 0.25 || d > 12) e = `Depth must be more than ${fr(c.T + 0.25)}" (tile on the back) and at most 12".`;
+  else {
+    const x0 = xv ?? (len - w) / 2;
+    if (x0 < 1 || x0 + w > len - 1) e = `The niche must sit inside the wall, at least 1" from each end. This wall is ${fr(len)}" wide.`;
+    else if (y < c.FB + 1 || y + h > ht - 1) e = `The niche must sit at least 1" above the floor and 1" below the top of the wall (${fr(ht)}").`;
+    else return {niche: {x0, x1: x0 + w, y0: y, y1: y + h, w, h, d}, nerr: ""};
+  }
+  return {niche: null, nerr: e};
+}
+const SNAP = {};
+
+// Cut one tile around the niche: whole tiles beside, below or above it come back trimmed; a tile the niche
+// only bites into comes back as one notched piece with its hole and the rectangles that make it up.
+function route(p, n){
+  if (!n) return [p];
+  const E = 0.02, hx0 = Math.max(p.x, n.x0), hx1 = Math.min(p.x + p.w, n.x1), hy0 = Math.max(p.y, n.y0), hy1 = Math.min(p.y + p.h, n.y1);
+  if (hx1 - hx0 < E || hy1 - hy0 < E) return [p];
+  const fullH = hy0 <= p.y + E && hy1 >= p.y + p.h - E, fullW = hx0 <= p.x + E && hx1 >= p.x + p.w - E;
+  const mk = (x, w, y, h) => ({x, w, y, h, nic: true}), keep = q => q.w > 0.05 && q.h > 0.05;
+  if (fullH) return [mk(p.x, hx0 - p.x, p.y, p.h), mk(hx1, p.x + p.w - hx1, p.y, p.h)].filter(keep);
+  if (fullW) return [mk(p.x, p.w, p.y, hy0 - p.y), mk(p.x, p.w, hy1, p.y + p.h - hy1)].filter(keep);
+  const parts = [mk(p.x, hx0 - p.x, p.y, p.h), mk(hx1, p.x + p.w - hx1, p.y, p.h),
+                 mk(hx0, hx1 - hx0, p.y, hy0 - p.y), mk(hx0, hx1 - hx0, hy1, p.y + p.h - hy1)].filter(keep);
+  return [{...p, nic: true, hole: {x0: hx0, x1: hx1, y0: hy0, y1: hy1}, parts}];
+}
+
+// plan point along a wall: u along its face, d out from the backer into the shower
+const P2 = (g, u, d) => [g.O[0] + g.dir[0] * u + g.n[0] * d, g.O[2] + g.dir[2] * u + g.n[2] * d];
+
+// Rows are shared by every wall so grout lines run level around the corners.
+function vrows(c){
+  const {TH, G, EG, FB, H} = c, avail = H - FB - 2 * EG;
+  if (avail < TH * 0.25) return [];
+  const n = Math.floor((avail + G) / (TH + G)), rem = avail - n * TH - n * G;
+  let hs;
+  if (st.opt === "A") { hs = Array(n).fill(TH); if (rem > 0.05) hs.push(rem); }
+  else { const k = Math.max(n - 1, 0), c2 = (avail - k * TH - (k + 1) * G) / 2; hs = [c2, ...Array(k).fill(TH), c2]; }
+  let y = FB + EG;
+  return hs.map(h => { const r = {y, h}; y += h + G; return r; });
+}
+
+function pieces(x0, u, TW, step){
+  const out = [];
+  for (let a = x0; a < u; a += step) {
+    const ca = Math.max(a, 0), cb = Math.min(a + TW, u);
+    if (cb - ca > 0.05) out.push([ca, cb]);
+  }
+  return out;
+}
+const norm = (x, step) => ((x % step) + step) % step - step;
+
+function wallLayout(g, rows, c){
+  const {TW, TH, G, EG} = c, step = TW + G, g0 = g.e0 ? EG : 0, g1 = g.e1 ? EG : 0, u = g.len - g0 - g1;
+  const ends = x => { const p = pieces(x, u, TW, step); return p.length ? Math.min(p[0][1]-p[0][0], p[p.length-1][1]-p[p.length-1][0]) : 0; };
+  // try centering a tile and centering a joint; keep whichever leaves larger end pieces
+  const a = norm(u/2 - TW/2, step), b = norm(u/2 + G/2, step);
+  const x0 = ends(a) >= ends(b) ? a : b;
+  let full = 0, cut = 0;
+  const placed = [];
+  rows.forEach((r, i) => {
+    const h = Math.min(r.y + r.h, g.ht) - r.y;
+    if (h < 0.05) return;
+    const xr = norm(x0 - (st.pat === "offset" ? (i % 3) * TW / 3 : 0), step);
+    const ps = pieces(xr, u, TW, step).flatMap(([p, q]) => route({x: g0 + p, w: q - p, y: r.y, h}, g.niche));
+    ps.forEach(p => { p.cut = p.w < TW - 0.01 || p.h < TH - 0.01 || !!p.hole; p.cut ? cut++ : full++; });
+    placed.push({y: r.y, h, ps});
+  });
+  const first = placed[0] ? placed[0].ps : [];
+  // things a tiler would want to know before starting
+  const MIN = 1, warn = new Set(), bad = new Set();
+  const endName = ["left end", "right end"];
+  placed.forEach(r => {
+    if (!r.ps.length) return;
+    const ends = [[r.ps[0], r.ps[0].x - g0, g.c0, g.e0, g0], [r.ps[r.ps.length - 1], (g.len - g1) - (r.ps[r.ps.length - 1].x + r.ps[r.ps.length - 1].w), g.c1, g.e1, g1]];
+    ends.forEach(([p, gap, cov, corner, eg], e) => {
+      if (gap > 1/32) {
+        warn.add(corner
+          ? `${endName[e]}: the tile stops ${fr(gap)}" short of the corner, so that joint is ${fr(gap + eg)}" instead of ${fr(eg)}".`
+          : `${endName[e]}: the tile stops ${fr(gap)}" short of the open edge, so the trim or edge piece has to cover that gap.`);
+        bad.add(p);
+      }
+      if (p.w < TW - 0.01 && p.w < MIN) { warn.add(`${endName[e]}: ${fr(p.w)}" cut is too thin to cut cleanly.`); bad.add(p); }
+      else if (cov.hid && r.y < cov.upto) {
+        const shows = p.w - (cov.hid - eg);
+        if (shows < MIN) { warn.add(`${endName[e]}: only ${fr(Math.max(shows, 0))}" of the end piece shows past the ${cov.by} tile.`); bad.add(p); }
+      }
+    });
+    const n = g.niche, E = 0.02;
+    if (n) r.ps.filter(p => p.nic).forEach(p => {
+      const h = p.hole;
+      if (h && h.x0 > p.x + E && h.x1 < p.x + p.w - E && h.y0 > p.y + E && h.y1 < p.y + p.h - E) {
+        warn.add("Niche: one tile would need a hole cut out of its middle. Move or resize the niche so it reaches a grout line."); bad.add(p); return;
+      }
+      (p.parts || [p]).forEach(q => {
+        const lr = Math.abs(q.x + q.w - n.x0) < E ? "left of" : Math.abs(q.x - n.x1) < E ? "right of" : "";
+        const side = lr || (Math.abs(q.y + q.h - n.y0) < E ? "below" : "above"), v = lr ? q.w : q.h;
+        if (v < MIN) { warn.add(`Niche: the ${fr(v)}" strip of tile ${side} the niche is too thin to cut cleanly.`); bad.add(p); }
+      });
+      if (h && Math.min(h.x1 - h.x0, h.y1 - h.y0) < MIN)
+        { warn.add(`Niche: an edge falls ${fr(Math.min(h.x1 - h.x0, h.y1 - h.y0))}" past a grout line, so a tile needs a very thin notch.`); bad.add(p); }
+    });
+    if (r.h < TH - 0.01 && r.h < MIN) { warn.add(`${fr(r.h)}" cut row is too thin to cut cleanly. Try the other row layout.`); r.ps.forEach(p => bad.add(p)); }
+  });
+  placed.forEach(r => r.ps.forEach(p => p.warn = bad.has(p)));
+  return {rows: placed, g0, g1, full, cut, warn: [...warn],
+    eL: first.length ? first[0].w : 0, eR: first.length ? first[first.length-1].w : 0,
+    cutRows: [...new Set(placed.filter(r => r.h < TH - 0.01).map(r => fr(r.h)))]};
+}
+
+/* ---------- form ---------- */
+
+function buildForm(){
+  $("walls").innerHTML = SIDES.map(k => { const w = st.walls[k]; return `
+    <div class="wall" id="wc-${k}">
+      <div class="whead">
+        <input class="name" data-k="${k}" data-f="name" value="${esc(w.name)}" aria-label="${k} wall name">
+        <label class="check"><input type="checkbox" data-k="${k}" data-f="on"> Tiled</label>
+      </div>
+      <div class="row3">
+        <label>Length<input data-k="${k}" data-f="len" value="${esc(w.len)}" placeholder="Full" inputmode="decimal"></label>
+        <label>Height<input data-k="${k}" data-f="ht" value="${esc(w.ht)}" placeholder="Ceiling" inputmode="decimal"></label>
+        <label>Starts at<select data-k="${k}" data-f="from">${ENDS[k].map(e =>
+          `<option value="${e}"${w.from === e ? " selected" : ""}>${END_LBL[e]}</option>`).join("")}</select></label>
+      </div>
+      <div class="meta" id="m-${k}"></div>
+      <div class="err" id="e-${k}"></div>
+      <label class="check nchk"><input type="checkbox" data-k="${k}" data-n="on"> Niche in this wall</label>
+      <div class="niche" id="n-${k}">
+        <div class="row3">
+          <label>Width<input data-k="${k}" data-n="w" value="${esc(w.niche.w)}" inputmode="decimal"></label>
+          <label>Height<input data-k="${k}" data-n="h" value="${esc(w.niche.h)}" inputmode="decimal"></label>
+          <label>Depth<input data-k="${k}" data-n="d" value="${esc(w.niche.d)}" inputmode="decimal"></label>
+        </div>
+        <div class="row3">
+          <label>Bottom<input data-k="${k}" data-n="y" value="${esc(w.niche.y)}" inputmode="decimal"></label>
+          <label>Left edge<input data-k="${k}" data-n="x" value="${esc(w.niche.x)}" placeholder="Centered" inputmode="decimal"></label>
+          <button type="button" data-snap="${k}" title="Move the bottom of the niche to the nearest grout line">Snap to grout</button>
+        </div>
+        <div class="meta" id="nm-${k}"></div>
+        <div class="err" id="ne-${k}"></div>
+      </div>
+    </div>`; }).join("");
+  $("walls").querySelectorAll("[data-n]").forEach(el => {
+    el.addEventListener(el.type === "checkbox" ? "change" : "input", () => {
+      st.walls[el.dataset.k].niche[el.dataset.n] = el.type === "checkbox" ? el.checked : el.value;
+      if (el.type === "checkbox" && el.checked) st.sel = el.dataset.k;
+      render();
+    });
+  });
+  $("walls").querySelectorAll("[data-snap]").forEach(b => b.onclick = () => {
+    const k = b.dataset.snap, v = SNAP[k];
+    if (v == null) return;
+    st.walls[k].niche.y = fr(v); $("walls").querySelector(`[data-k="${k}"][data-n="y"]`).value = fr(v); render();
+  });
+  $("walls").querySelectorAll("[data-f]").forEach(el => {
+    const ev = el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input";
+    el.addEventListener(ev, () => {
+      st.walls[el.dataset.k][el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
+      if (el.dataset.f === "on" && el.checked) st.sel = el.dataset.k;
+      render();
+    });
+  });
+  ["W","D","H","T","tw","th","g","eg","fb"].forEach(k => { $(k).value = st[k]; $(k).oninput = () => { st[k] = $(k).value; render(); }; });
+  $("cuts").checked = st.cuts; $("ledg").checked = st.ledger; $("finish").value = st.finish; $("grout").value = st.grout;
+}
+
+document.querySelectorAll("[data-opt]").forEach(b => b.onclick = () => { st.opt = b.dataset.opt; render(); });
+document.querySelectorAll("[data-pat]").forEach(b => b.onclick = () => { st.pat = b.dataset.pat; render(); });
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { st.view = b.dataset.view; render(); });
+$("cuts").onchange = () => { st.cuts = $("cuts").checked; render(); };
+$("ledg").onchange = () => { st.ledger = $("ledg").checked; render(); };
+$("finish").onchange = () => { st.finish = $("finish").value; render(); };
+$("grout").onchange = () => { st.grout = $("grout").value; render(); };
+$("resetview").onclick = () => resetView();
+$("print").onclick = () => window.print();
+$("reset").onclick = () => { st = clone(DEFAULTS); buildForm(); resetView(); render(); };
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => render());
+
+/* ---------- main render ---------- */
+
+function render(){
+  save();
+  const press = (sel, key) => document.querySelectorAll(`[data-${sel}]`).forEach(b => b.setAttribute("aria-pressed", b.dataset[sel] === st[key]));
+  press("opt", "opt"); press("pat", "pat"); press("view", "view");
+
+  const c = {TW: parse(st.tw), TH: parse(st.th), G: parse(st.g), EG: parse(st.eg), FB: parse(st.fb),
+             W: parse(st.W), D: parse(st.D), H: parse(st.H), T: parse(st.T)};
+  const badT = [c.TW, c.TH, c.G, c.EG, c.FB].some(isNaN) || c.TW <= 0 || c.TH <= 0;
+  $("gerr").textContent = badT ? "Enter sizes like 23 5/8, 11.5, or 1/8. Tile sizes must be above 0." : "";
+  let serr = "";
+  if ([c.W, c.D, c.H, c.T].some(isNaN)) serr = "Enter sizes like 70 1/2 or 36.5.";
+  else if (c.W < 12 || c.D < 12) serr = "Width and depth must be at least 12\".";
+  else if (c.H < 24) serr = "Ceiling must be at least 24\".";
+  else if (c.T > 3) serr = "Tile + thinset is the thickness on the wall, usually 3/8\" to 5/8\".";
+  $("serr").textContent = serr;
+
+  const G = serr ? null : geometry(c);
+  SIDES.forEach(k => {
+    const w = st.walls[k], g = G && G[k], card = $("wc-" + k);
+    card.classList.toggle("off", !w.on);
+    card.classList.toggle("on", w.on && k === st.sel);
+    card.querySelector('[data-f="on"]').checked = w.on;
+    card.querySelector('[data-f="from"]').disabled = !String(w.len).trim();
+    $("e-" + k).textContent = g && w.on ? g.err : "";
+    $("m-" + k).textContent = !w.on ? "Open, not tiled" : g && g.ok ? `Tiled area ${fr(g.len)}" wide × ${fr(g.ht)}" tall` : "";
+    card.querySelector('[data-n="on"]').checked = w.niche.on;
+    $("n-" + k).hidden = !w.niche.on;
+    $("ne-" + k).textContent = g && g.ok ? g.nerr : "";
+    $("nm-" + k).textContent = ""; SNAP[k] = null;
+    card.querySelector("[data-snap]").disabled = true;
+  });
+  drawPlan(G, c);
+
+  const active = G ? SIDES.filter(k => G[k].ok) : [];
+  if (!active.includes(st.sel) && active.length) st.sel = active[0];
+  $("tabs").innerHTML = active.map(k => `<button data-s="${k}" aria-pressed="${k === st.sel}">${esc(G[k].name)}</button>`).join("");
+  $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => { st.sel = b.dataset.s; if (st.view === "3d") faceWall(st.sel); render(); });
+
+  const is3d = st.view === "3d", fin = st.finish !== "layout";
+  // the finished look hides construction marks, so those toggles don't apply there
+  $("cuts").disabled = fin; $("ledg").disabled = fin; $("groutwrap").hidden = !fin;
+  $("svg").toggleAttribute("hidden", is3d); $("v3").hidden = !is3d; $("v3bar").hidden = !is3d;
+
+  const rows = (!badT && G) ? vrows(c) : [];
+  if (!badT && G && !rows.length) $("gerr").textContent = "The tile is too tall for the wall height.";
+  if (badT || !G || !active.length || !rows.length) {
+    $("svg").innerHTML = ""; $("tb").innerHTML = ""; $("tf").innerHTML = ""; $("area").textContent = ""; $("warn").hidden = true;
+    if (is3d) show3D(null);
+    return;
+  }
+
+  const ledger = rows[0].y + rows[0].h + c.G;
+  active.forEach(k => nicheNote(k, G[k], rows, c));
+  const L = {};
+  active.forEach(k => L[k] = wallLayout(G[k], rows, c));
+  $("tb").innerHTML = active.map(k => { const r = L[k], g = G[k]; return `<tr>
+    <td>${esc(g.name)}</td><td>${fr(g.len)}" × ${fr(g.ht)}"</td><td>${fr(r.eL)}" / ${fr(r.eR)}"${shows(g, r)}</td>
+    <td>${r.cutRows.length ? r.cutRows.map(x => x + '"').join(", ") : "none"}</td><td>${g.ht > ledger ? fr(ledger) + '"' : "—"}</td>
+    <td>${r.full}</td><td>${r.cut}</td><td>${sqft(wallArea(g))}${g.niche ? `<div class="sub">with niche</div>` : ""}</td></tr>`; }).join("");
+  const sum = f => active.reduce((s, k) => s + L[k][f], 0);
+  const wallIn = active.reduce((s, k) => s + wallArea(G[k]), 0);
+  const warns = active.flatMap(k => L[k].warn.map(w => `<li><b>${esc(G[k].name)}</b>, ${esc(w)}</li>`));
+  $("warn").hidden = !warns.length;
+  $("warn").innerHTML = warns.length ? `<h2>Check these</h2><ul>${warns.join("")}</ul>` : "";
+  $("tabs").querySelectorAll("button").forEach(b => { if (L[b.dataset.s].warn.length) b.insertAdjacentHTML("beforeend", ` <span class="dot" title="Has notes below">●</span>`); });
+  $("tf").innerHTML = active.length > 1 ? `<tr><td>Total</td><td></td><td></td><td></td><td></td><td>${sum("full")}</td><td>${sum("cut")}</td><td>${sqft(wallIn)}</td></tr>` : "";
+  // floor inside the finished tile: the backer rectangle minus each tiled wall's footprint (walls butt, so none overlap)
+  const floorIn = c.W * c.D - c.T * active.reduce((s, k) => s + G[k].len, 0);
+  $("area").innerHTML = `<b>Wall tile ${sqft(wallIn)}</b> (${sqft(wallIn * 1.1)} with 10% extra for cuts and breakage) · ` +
+    `<b>Floor ${sqft(floorIn)}</b> inside the tile, ${sqft(c.W * c.D)} to the backer`;
+
+  if (is3d) show3D({G, L, c, ledger, active});
+  else draw(G[st.sel], L[st.sel], c, ledger);
+}
+
+// tiled face of a wall, plus the inside of its niche (back, sides, sill and top) less the opening
+const wallArea = g => g.len * g.ht + (g.niche ? 2 * g.niche.d * (g.niche.w + g.niche.h) : 0);
+
+// finished size of the niche and where its edges fall against the grout lines
+function nicheNote(k, g, rows, c){
+  const n = g.niche;
+  if (!n) return;
+  const tops = rows.map(r => r.y + r.h).filter(t => t >= c.FB + 1 && t + n.h <= g.ht - 1);
+  const near = tops.length ? tops.reduce((a, t) => Math.abs(t - n.y0) < Math.abs(a - n.y0) ? t : a) : null;
+  // fractions are typed to the nearest 1/16", so allow just over 1/32" either way
+  const onB = near != null && Math.abs(near - n.y0) < 0.04, onT = rows.some(r => Math.abs(r.y - n.y1) < 0.04);
+  let t = `Finished opening ${fr(n.w - 2 * c.T)}" × ${fr(n.h - 2 * c.T)}" after tile, top at ${fr(n.y1)}". `;
+  if (onB) {
+    t += "Bottom is on a grout line.";
+    if (!onT) {
+      const hs = rows.map(r => r.y - n.y0).filter(h => h >= 4 && n.y0 + h <= g.ht - 1);
+      const hn = hs.length ? hs.reduce((a, h) => Math.abs(h - n.h) < Math.abs(a - n.h) ? h : a) : null;
+      if (hn != null) t += ` A height of ${fr(hn)}" would put the top on one too.`;
+    } else t = t.replace("Bottom is", "Top and bottom are");
+  } else if (near != null) {
+    t += `Nearest grout line for the bottom: ${fr(near)}".`;
+    SNAP[k] = near; $("wc-" + k).querySelector("[data-snap]").disabled = false;
+  }
+  $("nm-" + k).textContent = t;
+}
+
+// square inches to a square-feet label
+const sqft = in2 => (in2 / 144).toFixed(1) + " sq ft";
+
+// visible width of end pieces that are partly covered by the neighbouring wall's tile
+function shows(g, r){
+  const v = [[g.c0, r.eL, r.g0], [g.c1, r.eR, r.g1]].map(([cov, w, eg]) => cov.hid ? fr(Math.max(w - (cov.hid - eg), 0)) + '"' : "all");
+  return v.some(x => x !== "all") ? `<div class="sub">shows ${v.join(" / ")}</div>` : "";
+}
+
+/* ---------- top view ---------- */
+
+function drawPlan(G, c){
+  const svg = $("plan");
+  if (!G) { svg.setAttribute("viewBox", "0 0 300 40"); svg.innerHTML = `<text class="lbl" x="150" y="24" text-anchor="middle">Enter the shower size above</text>`; return; }
+  const {W, D, T} = c, S = Math.min(220 / W, 170 / D), PX = 58, PY = 30;
+  const VW = W * S + 2 * PX, VH = D * S + 2 * PY;
+  svg.setAttribute("viewBox", `0 0 ${VW.toFixed(0)} ${VH.toFixed(0)}`);
+  const X = x => PX + x * S, Y = z => PY + z * S;
+  const rect = (a, b, attrs) => `<rect x="${X(Math.min(a[0], b[0])).toFixed(1)}" y="${Y(Math.min(a[1], b[1])).toFixed(1)}"
+    width="${(Math.abs(b[0] - a[0]) * S).toFixed(1)}" height="${(Math.abs(b[1] - a[1]) * S).toFixed(1)}" ${attrs}/>`;
+  const tVis = Math.max(T, 3.5 / S); // keep the tile layer visible at small scale
+  let slabs = "", tiles = "", open = "", labels = "", hits = "";
+  slabs += rect([0, 0], [W, D], `fill="var(--bg)"`);
+  const sideLine = {back: [[0, 0], [W, 0]], left: [[0, 0], [0, D]], right: [[W, 0], [W, D]], front: [[0, D], [W, D]]};
+  const hw = 15 / S; // hit band, in inches
+  const hitBox = {back: [[-SLAB, -hw - SLAB], [W + SLAB, hw * .6]], left: [[-hw - SLAB, 0], [hw * .6, D]],
+                  right: [[W - hw * .6, 0], [W + hw + SLAB, D]], front: [[0, D - hw * .6], [W, D + hw]]};
+  SIDES.forEach(k => {
+    const g = G[k], sel = k === st.sel && g.ok;
+    if (g.on) {
+      slabs += rect(P2(g, -g.x0, -SLAB), P2(g, g.len + g.x1, 0), `fill="var(--slab)"`);
+      tiles += rect(P2(g, 0, 0), P2(g, g.len, tVis), `fill="${g.err ? "var(--err)" : sel ? "var(--accent)" : "var(--tile)"}" stroke="${sel ? "var(--accent)" : "var(--tile-edge)"}" stroke-width=".8"`);
+    } else {
+      const [a, b] = sideLine[k];
+      open += `<line x1="${X(a[0])}" y1="${Y(a[1])}" x2="${X(b[0])}" y2="${Y(b[1])}" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 4"/>`;
+    }
+    const nm = esc(g.name.length > 12 ? g.name.slice(0, 11) + "…" : g.name) + (g.on ? "" : " (open)");
+    const style = `class="lbl" style="${sel ? "fill:var(--accent);font-weight:600" : ""}"`;
+    if (k === "back")  labels += `<text ${style} x="${X(W / 2)}" y="${Y(0) - SLAB * S - 7}" text-anchor="middle">${nm}</text>`;
+    if (k === "front") labels += `<text ${style} x="${X(W / 2)}" y="${Y(D) + SLAB * S + 14}" text-anchor="middle">${nm}</text>`;
+    if (k === "left")  labels += `<text ${style} x="${X(0) - SLAB * S - 6}" y="${Y(D / 2)}" text-anchor="end" dominant-baseline="central">${nm.replace(" (open)", "")}</text>`
+                               + (g.on ? "" : `<text class="lbl" x="${X(0) - SLAB * S - 6}" y="${Y(D / 2) + 15}" text-anchor="end" dominant-baseline="central">open</text>`);
+    if (k === "right") labels += `<text ${style} x="${X(W) + SLAB * S + 6}" y="${Y(D / 2)}" dominant-baseline="central">${nm.replace(" (open)", "")}</text>`
+                               + (g.on ? "" : `<text class="lbl" x="${X(W) + SLAB * S + 6}" y="${Y(D / 2) + 15}" dominant-baseline="central">open</text>`);
+    hits += `<g class="hit" data-k="${k}"><title>${g.on ? "Remove" : "Add"} ${esc(g.name)} wall</title>${rect(...hitBox[k], "")}</g>`;
+  });
+  labels += `<text class="lbl" x="${X(W / 2)}" y="${Y(D / 2)}" text-anchor="middle" dominant-baseline="central">${fr(W)}" × ${fr(D)}"</text>`;
+  svg.innerHTML = slabs + tiles + open + labels + hits;
+  svg.querySelectorAll(".hit").forEach(el => el.addEventListener("click", () => {
+    const k = el.dataset.k, w = st.walls[k];
+    w.on = !w.on;
+    if (w.on) st.sel = k;
+    render();
+  }));
+}
+
+/* ---------- 2D wall elevation ---------- */
+
+function draw(g, r, c, ledger){
+  const S = Math.min(420 / g.len, 400 / g.ht), X0 = 130, Y0 = 24, yb = Y0 + g.ht * S, R = X0 + g.len * S;
+  let h = `<rect x="${X0}" y="${Y0}" width="${(g.len*S).toFixed(1)}" height="${(g.ht*S).toFixed(1)}" fill="none" stroke="var(--muted)" stroke-width="1"/>`;
+  if (c.FB > 0) h += `<rect x="${X0}" y="${(yb - c.FB*S).toFixed(1)}" width="${(g.len*S).toFixed(1)}" height="${Math.max(c.FB*S, 1.5).toFixed(1)}" fill="var(--floor)"/>`;
+  // Every width cut gets a label: across the piece if it fits, turned sideways if the piece is tall enough,
+  // otherwise beside the wall with a short leader line.
+  const out = [];
+  r.rows.forEach(row => {
+    row.ps.forEach(p => {
+      const px = X0 + p.x * S, py = yb - (p.y + p.h) * S, pw = p.w * S, ph = p.h * S;
+      h += `<rect class="${p.cut ? "t-cut" : "t-full"}${p.warn ? " t-warn" : ""}" x="${px.toFixed(1)}" y="${py.toFixed(1)}" width="${pw.toFixed(1)}" height="${ph.toFixed(1)}" rx="1"/>`;
+      // label goes on the biggest solid part of a notched piece
+      const big = p.parts ? p.parts.reduce((a, q) => q.w * q.h > a.w * a.h ? q : a) : p;
+      const cx = X0 + (big.x + big.w / 2) * S, cy = yb - (big.y + big.h / 2) * S;
+      const wCut = p.w < c.TW - 0.01, hCut = p.nic && p.h < row.h - 0.01;
+      if (!wCut && !hCut && !p.hole) return;
+      const t = p.hole ? "notch" : wCut && hCut ? `${fr(p.w)}×${fr(p.h)}"` : wCut ? fr(p.w) + '"' : `${fr(p.h)}" tall`;
+      const tw = t.length * 6.6 + 6, bw = big.w * S, bh = big.h * S;
+      if (bw >= tw && bh >= 16)
+        h += `<text class="cutlbl" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${t}</text>`;
+      else if (bw >= 14 && bh >= tw - 4)
+        h += `<text class="cutlbl" style="font-size:11px" transform="translate(${cx.toFixed(1)} ${cy.toFixed(1)}) rotate(-90)" text-anchor="middle" dominant-baseline="central">${t}</text>`;
+      else out.push({t, cx, cy, left: cx < X0 + g.len * S / 2});
+    });
+  });
+  const n = g.niche;
+  if (n) {
+    const nx = X0 + n.x0 * S, ny = yb - n.y1 * S, nw = n.w * S, nh = n.h * S, T = c.T * S, mx = nx + nw / 2;
+    h += `<rect class="nic" x="${nx.toFixed(1)}" y="${ny.toFixed(1)}" width="${nw.toFixed(1)}" height="${nh.toFixed(1)}"/>`;
+    h += `<rect class="nicin" x="${(nx + T).toFixed(1)}" y="${(ny + T).toFixed(1)}" width="${(nw - 2 * T).toFixed(1)}" height="${(nh - 2 * T).toFixed(1)}"/>`;
+    const lines = ["Niche", `${fr(n.w)}×${fr(n.h)}"`, `bottom ${fr(n.y0)}"`];
+    const fits = nw >= 52 && nh >= 44;
+    lines.forEach((l, i) => h += fits
+      ? `<text class="lbl" x="${mx.toFixed(1)}" y="${(ny + nh / 2 + (i - 1) * 13).toFixed(1)}" text-anchor="middle" dominant-baseline="central" style="font-size:10.5px;fill:var(--ink)">${l}</text>`
+      : `<text class="lbl" x="${(nx + nw + 4).toFixed(1)}" y="${(ny + 10 + i * 12).toFixed(1)}" style="font-size:10.5px;fill:var(--ink);paint-order:stroke;stroke:var(--panel);stroke-width:3px">${l}</text>`);
+  }
+  const hasL = out.some(o => o.left), hasR = out.some(o => !o.left), padL = hasL ? 60 : 10, padR = hasR ? 60 : 12;
+  out.forEach(o => {
+    const x = o.left ? X0 - 8 : R + 8;
+    h += `<line x1="${o.cx.toFixed(1)}" y1="${o.cy.toFixed(1)}" x2="${(o.left ? X0 - 5 : R + 5).toFixed(1)}" y2="${o.cy.toFixed(1)}" stroke="var(--cut-edge)" stroke-width="1"/>`;
+    h += `<text class="lbl" x="${x.toFixed(1)}" y="${o.cy.toFixed(1)}" text-anchor="${o.left ? "end" : "start"}" dominant-baseline="central" style="fill:var(--ink);font-size:11px">${o.t}</text>`;
+  });
+  r.rows.forEach(row => {
+    if (row.h < c.TH - 0.01)
+      h += `<text class="lbl" x="${X0 - padL}" y="${(yb - (row.y + row.h/2) * S).toFixed(1)}" text-anchor="end" dominant-baseline="central">${fr(row.h)}" row</text>`;
+  });
+  // strip of the end pieces covered by the tile of the wall that butts into this one
+  [[g.c0, 0], [g.c1, g.len - g.c1.hid]].forEach(([cov, u]) => {
+    if (!cov.hid) return;
+    const top = Math.min(g.ht, cov.upto), wpx = Math.max(cov.hid * S, 3), x = u === 0 ? X0 : R - wpx;
+    h += `<rect x="${x.toFixed(1)}" y="${(yb - top * S).toFixed(1)}" width="${wpx.toFixed(1)}" height="${((top - c.FB) * S).toFixed(1)}" fill="url(#hatch)" stroke="var(--muted)" stroke-width=".8"/>`;
+  });
+  // which ends are corners (caulked edge gap) and which are open (finished edge)
+  // left end on one line, right end on the next, so they never collide on narrow walls
+  const endTxt = (on, cov, nb) => {
+    const nm = esc(nb.wall.name);
+    if (!on) return nb.wall.on ? `open edge, doesn't meet ${nm}` : `open edge on the ${nb.dir} side`;
+    if (cov.hid) return `corner with ${nm}, ${fr(cov.hid - c.EG)}" hidden behind ${nm} tile` +
+      (cov.upto < g.ht - 0.01 ? ` up to ${fr(cov.upto)}"` : "");
+    return `corner with ${nm}, butts into ${nm} tile`;
+  };
+  const endLbl = (txt, side, dy) => `<text class="lbl" x="${X0}" y="${(yb + dy).toFixed(1)}" style="font-size:11px">${side}: ${txt}</text>`;
+  h += endLbl(endTxt(g.e0, g.c0, g.n0), "◂ Left end", 40) + endLbl(endTxt(g.e1, g.c1, g.n1), "Right end ▸", 55);
+  if (g.ht > ledger) {
+    const ly = yb - ledger * S;
+    h += `<line x1="${X0 - 6}" y1="${ly.toFixed(1)}" x2="${(R + 6).toFixed(1)}" y2="${ly.toFixed(1)}" stroke="var(--chalk)" stroke-width="2" stroke-dasharray="7 4"/>`;
+    h += `<text class="lbl" x="${(R + padR).toFixed(1)}" y="${ly.toFixed(1)}" dominant-baseline="central" style="fill:var(--chalk)">Ledger ${fr(ledger)}"</text>`;
+  }
+  h += `<text class="lbl" x="${(R + padR).toFixed(1)}" y="${Y0 + 8}">${g.full ? "Ceiling" : "Top of wall"}</text>`;
+  h += `<text class="lbl" x="${(R + padR).toFixed(1)}" y="${(yb - 2).toFixed(1)}">Pan</text>`;
+  h += `<text class="lbl" x="${(X0 + g.len*S/2).toFixed(1)}" y="${(yb + 22).toFixed(1)}" text-anchor="middle">${esc(g.name)}: ${fr(g.len)}" wide × ${fr(g.ht)}" tall, seen from inside</text>`;
+  const defs = `<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <rect width="5" height="5" fill="var(--panel)" fill-opacity=".55"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--ink)" stroke-opacity=".55" stroke-width="2"/></pattern></defs>`;
+  $("svg").setAttribute("viewBox", `0 0 ${Math.max(680, Math.ceil(R + padR + 95))} ${Math.ceil(yb + 64)}`);
+  $("svg").innerHTML = defs + h;
+}
+
+/* ---------- 3D view ---------- */
+
+/* ---------- marble ---------- */
+
+const TEX_IN = 40; // inches of stone covered by one texture repeat
+const GROUT = {white: 0xeeeeea, light: 0xc4c5c1, gray: 0x8e9090, charcoal: 0x3b3c3e};
+const MARBLE = {
+  // base/cloud/vein are RGB; f = vein direction (whole numbers keep it seamless); warp = how much veins wander;
+  // core = thin vein strength, halo = soft wash around veins, faint = secondary hairline veins
+  carrara:   {base: [236,237,236], cloud: [214,217,221], vein: [112,118,128], f: [1, 2], warp: 1.1, core: .75, halo: .22, faint: .35, seed: 7},
+  calacatta: {base: [247,244,238], cloud: [236,231,221], vein: [138,114,82],  f: [1, 1], warp: 0.9, core: .95, halo: .35, faint: .2,  seed: 19},
+  nero:      {base: [22,22,25],    cloud: [38,38,43],    vein: [226,226,224], f: [2, 1], warp: 1.2, core: .85, halo: .12, faint: .3,  seed: 31}
+};
+// Seamless procedural marble: periodic value noise bends sine-wave veins, so tiles can sample any offset without seams.
+function marbleCanvas(kind){
+  const M = MARBLE[kind], N = 512, cv = document.createElement("canvas");
+  cv.width = cv.height = N;
+  const ctx = cv.getContext("2d"), img = ctx.createImageData(N, N), d = img.data;
+  let seed = M.seed;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const LG = 256, lat = new Float32Array(LG * LG);
+  for (let i = 0; i < lat.length; i++) lat[i] = rnd();
+  const noise = (x, y, p) => {
+    const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const x0 = ((xi % p) + p) % p, x1 = (x0 + 1) % p, y0 = ((yi % p) + p) % p, y1 = (y0 + 1) % p;
+    const a = lat[y0 * LG + x0], b = lat[y0 * LG + x1], c = lat[y1 * LG + x0], e = lat[y1 * LG + x1];
+    return a + (b - a) * sx + (c - a) * sy + (a - b - c + e) * sx * sy;
+  };
+  // fractal noise normalised to roughly 0..1
+  const fbm = (u, v, p, oct) => { let s = 0, amp = .5, tot = 0; for (let o = 0; o < oct; o++, tot += amp, amp *= .5, p *= 2) s += amp * noise(u * p, v * p, p); return s / tot; };
+  const TAU = Math.PI * 2, mix = (a, b, t) => a + (b - a) * t, clamp = x => Math.max(0, Math.min(1, x));
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const u = x / N, v = y / N, i = (y * N + x) * 4;
+    // main veins: a few long bands bent by low-frequency noise, with fine wobble along the edge
+    const bend = (fbm(u, v, 2, 5) - .5) * M.warp * TAU + (fbm(u + .5, v + .5, 16, 3) - .5) * .9;
+    const a1 = Math.abs(Math.sin(TAU * (M.f[0] * u + M.f[1] * v) + bend));
+    const fade = smooth(.35, .65, fbm(u + .21, v + .63, 3, 3));         // veins come and go along their length
+    const core = Math.pow(1 - a1, 70) * M.core * fade, halo = Math.pow(1 - a1, 7) * M.halo * (.4 + .6 * fade);
+    // secondary hairline veins crossing at another angle
+    const bend2 = (fbm(u + .41, v + .17, 4, 4) - .5) * M.warp * 1.6 * TAU;
+    const a2 = Math.abs(Math.sin(TAU * (3 * M.f[1] * u - 2 * M.f[0] * v) + bend2));
+    const hair = Math.pow(1 - a2, 120) * M.faint * smooth(.45, .7, fbm(u + .83, v + .37, 4, 3));
+    const vein = clamp(core + halo + hair);
+    const cloud = smooth(.4, .75, fbm(u + .73, v + .29, 3, 5)) * .8, grain = (rnd() - .5) * 4;
+    for (let ch = 0; ch < 3; ch++) d[i + ch] = mix(mix(M.base[ch], M.cloud[ch], cloud), M.vein[ch], vein) + grain;
+    d[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return cv;
+}
+function marbleMats(kind){
+  V.marble = V.marble || {};
+  if (V.marble[kind]) return V.marble[kind];
+  const tex = new THREE.CanvasTexture(marbleCanvas(kind));
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = V.ren.capabilities.getMaxAnisotropy();
+  const ftex = tex.clone(); ftex.needsUpdate = true;
+  const polish = kind === "nero" ? 0x666666 : 0x4a4a4a;
+  return V.marble[kind] = {
+    tile: new THREE.MeshPhongMaterial({map: tex, specular: polish, shininess: 90}),
+    // inside a niche: same stone, a little darker so the recess reads without shadows
+    back: new THREE.MeshPhongMaterial({map: tex, color: 0xb4b4b4, specular: polish, shininess: 90}),
+    side: new THREE.MeshPhongMaterial({map: tex, color: 0xd2d2d2, specular: polish, shininess: 90}),
+    floor: new THREE.MeshPhongMaterial({map: ftex, color: 0xd0d0d0, specular: 0x222222, shininess: 30}),
+    floorTex: ftex
+  };
+}
+// give each tile its own patch of stone (stable for a given layout), sometimes mirrored
+function marbleUV(geo, w, h, n){
+  const r = i => { const s = Math.sin(n * 12.9898 + i * 78.233) * 43758.5453; return s - Math.floor(s); };
+  const ox = r(1), oy = r(2), flip = r(3) < .5, sx = w / TEX_IN, sy = h / TEX_IN, uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) { const a = uv.getX(i), b = uv.getY(i); uv.setXY(i, ox + (flip ? 1 - a : a) * sx, oy + b * sy); }
+  uv.needsUpdate = true;
+}
+
+const V = {theta: 0.55, phi: 1.15, r: 0, goal: null, dimKey: "", state: "idle", last: null};
+const THREE_URL = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+
+function show3D(data){
+  V.last = data;
+  if (V.state === "ready") return build3D(data);
+  if (V.state === "loading") return;
+  if (V.state === "failed") { $("v3").innerHTML = `<div class="v3msg">The 3D view needs an internet connection to load. The 2D view works offline.</div>`; return; }
+  V.state = "loading";
+  $("v3").innerHTML = `<div class="v3msg">Loading 3D view…</div>`;
+  const s = document.createElement("script");
+  s.src = THREE_URL;
+  s.onload = () => { V.state = "ready"; init3D(); build3D(V.last); };
+  s.onerror = () => { V.state = "failed"; show3D(V.last); };
+  document.head.appendChild(s);
+}
+
+function init3D(){
+  const host = $("v3");
+  host.innerHTML = "";
+  V.ren = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
+  V.ren.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  host.appendChild(V.ren.domElement);
+  V.scene = new THREE.Scene();
+  V.cam = new THREE.PerspectiveCamera(38, 1.5, 1, 20000);
+  V.scene.add(new THREE.HemisphereLight(0xffffff, 0x9a9a94, 0.85));
+  V.key = new THREE.DirectionalLight(0xffffff, 0.4);
+  V.scene.add(V.key, V.key.target);
+  V.mats = {
+    full:   new THREE.MeshPhongMaterial({color: 0xdfe5e8, specular: 0x2a2a2a, shininess: 45}),
+    cut:    new THREE.MeshPhongMaterial({color: 0xedb458, specular: 0x2a2a2a, shininess: 45}),
+    grout:  new THREE.MeshLambertMaterial({color: 0x8d969a}),
+    slab:   new THREE.MeshLambertMaterial({color: 0xece8e0}),
+    floor:  new THREE.MeshLambertMaterial({color: 0xa9b2ad}),
+    ground: new THREE.MeshLambertMaterial({color: 0xcfcac0}),
+    ledger: new THREE.MeshBasicMaterial({color: 0xd2471f})
+  };
+  V.target = new THREE.Vector3();
+
+  const cv = V.ren.domElement, ptrs = new Map();
+  let pinch = 0, r0 = 0;
+  const dist = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  cv.addEventListener("pointerdown", e => {
+    cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY}); V.goal = null;
+    if (ptrs.size === 2) { pinch = dist(); r0 = V.r; }
+  });
+  cv.addEventListener("pointermove", e => {
+    const p = ptrs.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 1) { V.theta -= dx * 0.008; V.phi = Math.min(1.6, Math.max(0.1, V.phi - dy * 0.008)); }
+    else if (ptrs.size === 2 && pinch) zoomTo(r0 * pinch / Math.max(dist(), 1));
+    req();
+  });
+  const up = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  cv.addEventListener("wheel", e => { e.preventDefault(); zoomTo(V.r * Math.exp(e.deltaY * 0.0012)); req(); }, {passive: false});
+  cv.addEventListener("dblclick", () => resetView());
+
+  const fit = () => {
+    const w = host.clientWidth; if (!w || w === V.w) return;
+    const h = Math.round(Math.min(Math.max(w * 0.68, 300), 640));
+    V.w = w; V.ren.setSize(w, h); V.cam.aspect = w / h; V.cam.updateProjectionMatrix(); req();
+  };
+  fit();
+  new ResizeObserver(() => requestAnimationFrame(fit)).observe(host);
+}
+
+function zoomTo(r){ V.r = Math.min(V.rMax || 2000, Math.max(V.rMin || 10, r)); }
+function resetView(){ V.theta = 0.55; V.phi = 1.15; V.r = V.r0 || V.r; V.goal = null; req(); }
+function faceWall(k){
+  const t = {back: 0, left: Math.PI / 2, right: -Math.PI / 2, front: Math.PI}[k];
+  V.goal = {theta: t, phi: 1.3};
+  req();
+}
+
+function build3D(data){
+  if (V.root) { V.scene.remove(V.root); V.root.traverse(o => o.geometry && o.geometry.dispose()); V.root = null; }
+  const css = getComputedStyle(document.documentElement);
+  V.ren.setClearColor(css.getPropertyValue("--panel").trim() || "#f8f9f7");
+  V.walls = [];
+  if (!data) { req(); return; }
+  const {G, L, c, ledger, active} = data, {W, D, H, T} = c;
+  const fin = st.finish !== "layout", mm = fin ? marbleMats(st.finish) : null;
+  V.mats.cut.color.set(st.cuts ? 0xedb458 : 0xdfe5e8);
+  V.mats.grout.color.set(fin ? GROUT[st.grout] : 0x8d969a);
+  const root = new THREE.Group();
+
+  // floor and surrounding bathroom floor
+  const box = (sx, sy, sz, px, py, pz, mat, parent) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+    m.position.set(px, py, pz); parent.add(m); return m;
+  };
+  const fb = Math.max(c.FB, 0.25);
+  if (mm) mm.floorTex.repeat.set(W / TEX_IN, D / TEX_IN);
+  box(W, fb, D, W / 2, fb / 2, D / 2, mm ? mm.floor : V.mats.floor, root);
+  const big = Math.max(W, D, H) * 5;
+  box(big, 0.5, big, W / 2, -0.26, D / 2, V.mats.ground, root);
+
+  active.forEach(k => {
+    const g = G[k], r = L[k], grp = new THREE.Group();
+    // a box in the wall's own frame: u along the face, y up, d out from the backer
+    const add = (u0, u1, y0, y1, d0, d1, mat) => {
+      if (u1 - u0 <= 0 || y1 - y0 <= 0) return;
+      const uc = (u0 + u1) / 2, dc = (d0 + d1) / 2;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(u1 - u0, y1 - y0, d1 - d0), mat);
+      m.position.set(g.O[0] + g.dir[0] * uc + g.n[0] * dc, (y0 + y1) / 2, g.O[2] + g.dir[2] * uc + g.n[2] * dc);
+      m.rotation.y = g.rot; grp.add(m); return m;
+    };
+    const n = g.niche;
+    // a box with the niche opening left out of it (up to four boxes around the hole)
+    const around = (u0, u1, y0, y1, d0, d1, mat) => {
+      if (!n) return add(u0, u1, y0, y1, d0, d1, mat);
+      add(u0, Math.min(u1, n.x0), y0, y1, d0, d1, mat); add(Math.max(u0, n.x1), u1, y0, y1, d0, d1, mat);
+      add(Math.max(u0, n.x0), Math.min(u1, n.x1), y0, Math.min(y1, n.y0), d0, d1, mat);
+      add(Math.max(u0, n.x0), Math.min(u1, n.x1), Math.max(y0, n.y1), y1, d0, d1, mat);
+    };
+    around(-g.x0, g.len + g.x1, 0, g.ht, -SLAB, 0, V.mats.slab);
+    if (r.rows.length) {
+      const top = r.rows[r.rows.length - 1], yTop = top.y + top.h;
+      // finished look: grout nearly flush and caulk filling the corner and floor gaps
+      if (fin) around(0.02, g.len - 0.02, c.FB, yTop - 0.02, 0, Math.max(T - 0.06, T * 0.5), V.mats.grout);
+      else around(r.g0 + 0.02, g.len - r.g1 - 0.02, r.rows[0].y + 0.02, yTop - 0.02, 0, T * 0.55, V.mats.grout);
+    }
+    let seed = SIDES.indexOf(k) * 997;
+    const tile = (u0, u1, y0, y1, d0, d1, mat, stone) => {
+      const m = add(u0, u1, y0, y1, d0, d1, mm ? stone || mm.tile : mat);
+      if (mm && m) marbleUV(m.geometry, u1 - u0, y1 - y0, ++seed);
+    };
+    r.rows.forEach(row => row.ps.forEach(p => {
+      const mat = p.cut ? V.mats.cut : V.mats.full;
+      (p.parts || [p]).forEach(q => tile(q.x, q.x + q.w, q.y, q.y + q.h, 0, T, mat));
+    }));
+    if (n) {
+      // the niche: backer behind it, then tile on its back, sides, sill and top
+      const dd = n.d, bk = -dd + T;
+      add(n.x0, n.x1, n.y0, n.y1, -Math.max(SLAB, dd + 0.5), -dd, V.mats.slab);
+      tile(n.x0, n.x1, n.y0, n.y1, -dd, bk, V.mats.full, mm && mm.back);
+      tile(n.x0, n.x0 + T, n.y0, n.y1, bk, 0, V.mats.cut, mm && mm.side); tile(n.x1 - T, n.x1, n.y0, n.y1, bk, 0, V.mats.cut, mm && mm.side);
+      tile(n.x0 + T, n.x1 - T, n.y0, n.y0 + T, bk, 0, V.mats.cut); tile(n.x0 + T, n.x1 - T, n.y1 - T, n.y1, bk, 0, V.mats.cut, mm && mm.back);
+    }
+    if (!fin && st.ledger && g.ht > ledger) add(0, g.len, ledger - 0.2, ledger + 0.2, T + 0.02, T + 0.3, V.mats.ledger);
+    const mid = P2(g, g.len / 2, 0);
+    grp.userData = {n: g.n, p: [mid[0], 0, mid[1]], low: g.ht < H * 0.6}; // knee walls never hide
+    root.add(grp); V.walls.push(grp);
+  });
+
+  V.root = root; V.scene.add(root);
+  const m = Math.max(W, D, H);
+  V.rMin = m * 0.35; V.rMax = m * 6;
+  const dimKey = `${W}|${D}|${H}`;
+  if (dimKey !== V.dimKey) {
+    V.dimKey = dimKey; V.target.set(W / 2, H * 0.45, D / 2);
+    V.r0 = Math.max(W, D) * 1.6 + H * 0.9; V.r = V.r0;
+  }
+  req();
+}
+
+function req(){ if (V.ren && !V.raf) V.raf = requestAnimationFrame(frame); }
+function frame(){
+  V.raf = 0;
+  if (V.goal) {
+    let d = V.goal.theta - V.theta;
+    d = ((d + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+    const dp = V.goal.phi - V.phi;
+    V.theta += d * 0.18; V.phi += dp * 0.18;
+    if (Math.abs(d) < 0.002 && Math.abs(dp) < 0.002) V.goal = null; else req();
+  }
+  const t = V.target, s = Math.sin(V.phi);
+  V.cam.position.set(t.x + V.r * s * Math.sin(V.theta), t.y + V.r * Math.cos(V.phi), t.z + V.r * s * Math.cos(V.theta));
+  V.cam.lookAt(t);
+  // key light comes from over the viewer's left shoulder
+  V.key.position.set(t.x + V.r * Math.sin(V.theta - 0.6), t.y + V.r, t.z + V.r * Math.cos(V.theta - 0.6));
+  V.key.target.position.copy(t);
+  // hide walls whose back faces the camera so the inside stays visible
+  const cp = V.cam.position;
+  (V.walls || []).forEach(grp => {
+    const {n, p, low} = grp.userData;
+    grp.visible = low || n[0] * (cp.x - p[0]) + n[2] * (cp.z - p[2]) > -1;
+  });
+  V.ren.render(V.scene, V.cam);
+}
+
+buildForm();
+render();
+if (st.view === "3d") faceWall(st.sel);
+</script>
+</body>
+</html>
